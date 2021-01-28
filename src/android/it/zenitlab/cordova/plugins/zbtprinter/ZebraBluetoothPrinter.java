@@ -1,6 +1,7 @@
 package it.zenitlab.cordova.plugins.zbtprinter;
 
 import android.bluetooth.BluetoothAdapter;
+import android.bluetooth.BluetoothClass;
 import android.bluetooth.BluetoothDevice;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
@@ -25,14 +26,17 @@ import com.zebra.sdk.printer.ZebraPrinterLanguageUnknownException;
 import com.zebra.sdk.printer.ZebraPrinterLinkOs;
 import com.zebra.sdk.printer.discovery.BluetoothDiscoverer;
 import com.zebra.sdk.printer.discovery.DiscoveredPrinter;
+import com.zebra.sdk.printer.discovery.DiscoveredPrinterBluetooth;
 import com.zebra.sdk.printer.discovery.DiscoveryHandler;
 
 import org.apache.cordova.CallbackContext;
 import org.apache.cordova.CordovaPlugin;
 import org.json.JSONArray;
 import org.json.JSONException;
+import org.json.JSONObject;
 
 import java.io.IOException;
+import java.util.Iterator;
 import java.util.Set;
 
 
@@ -483,10 +487,36 @@ public class ZebraBluetoothPrinter extends CordovaPlugin implements DiscoveryHan
 
     @Override
     public void foundPrinter(DiscoveredPrinter discoveredPrinter) {
+        BluetoothAdapter adapter = BluetoothAdapter.getDefaultAdapter();
+        Set<BluetoothDevice> devices = adapter.getBondedDevices();
+        //adapter.cancelDiscovery();
+
+        JSONArray array = new JSONArray();
+        for(Iterator<BluetoothDevice> it = devices.iterator(); it.hasNext();)
+        {
+            BluetoothDevice device = it.next();
+            BluetoothClass cls = device.getBluetoothClass();
+            String name = device.getName();
+            String major = String.format("0x%X",cls.getMajorDeviceClass());
+            String minor = String.format("0x%X",cls.getDeviceClass());
+            String mac = device.getAddress();
+            JSONObject p = new JSONObject();
+            try {
+                p.put("name",name);
+                p.put("address", mac);
+                p.put("major_device_class", major);
+                p.put("device_class", minor);
+                array.put(p);
+                System.err.println(p.toString(2));
+            } catch (JSONException e) {
+                e.printStackTrace();
+            }
+
+        }
         Log.d(LOG_TAG, "Printer found: " + discoveredPrinter.address);
         if (!printerFound) {
             printerFound = true;
-            callbackContext.success(discoveredPrinter.address);
+            callbackContext.success(array);
         }
     }
 
@@ -506,4 +536,3 @@ public class ZebraBluetoothPrinter extends CordovaPlugin implements DiscoveryHan
     }
 
 }
-
